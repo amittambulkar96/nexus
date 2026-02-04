@@ -19,29 +19,33 @@ export function StatsCards({ stats, className }: StatsCardsProps) {
       label: "Active", 
       value: stats.active, 
       icon: Users,
-      color: "text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
-      iconColor: "text-blue-500"
+      bgColor: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      iconBg: "bg-blue-100 dark:bg-blue-900/40"
     },
     { 
       label: "In Progress", 
       value: stats.inProgress, 
       icon: Clock,
-      color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800",
-      iconColor: "text-yellow-500"
+      bgColor: "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800",
+      iconColor: "text-yellow-600 dark:text-yellow-400",
+      iconBg: "bg-yellow-100 dark:bg-yellow-900/40"
     },
     { 
       label: "Completed", 
       value: stats.completed, 
       icon: CheckCircle,
-      color: "text-green-600 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
-      iconColor: "text-green-500"
+      bgColor: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
+      iconColor: "text-green-600 dark:text-green-400",
+      iconBg: "bg-green-100 dark:bg-green-900/40"
     },
     { 
       label: "Blocked", 
       value: stats.blocked, 
       icon: AlertCircle,
-      color: "text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
-      iconColor: "text-red-500"
+      bgColor: "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
+      iconColor: "text-red-600 dark:text-red-400",
+      iconBg: "bg-red-100 dark:bg-red-900/40"
     },
   ];
 
@@ -51,17 +55,19 @@ export function StatsCards({ stats, className }: StatsCardsProps) {
         <div
           key={card.label}
           className={cn(
-            "bg-white dark:bg-zinc-900 rounded-xl p-4 border",
-            card.color
+            "bg-white dark:bg-zinc-900 rounded-xl p-5 border transition-all hover:shadow-md",
+            card.bgColor
           )}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
               {card.label}
             </span>
-            <card.icon className={cn("w-4 h-4", card.iconColor)} />
+            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", card.iconBg)}>
+              <card.icon className={cn("w-4 h-4", card.iconColor)} />
+            </div>
           </div>
-          <p className="text-3xl font-bold text-zinc-900 dark:text-white mt-2">
+          <p className="text-3xl font-bold text-zinc-900 dark:text-white">
             {card.value}
           </p>
         </div>
