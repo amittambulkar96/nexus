@@ -45,7 +45,7 @@ export function TopBar({ className }: TopBarProps) {
     >
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
-          Dashboard
+          Nexus
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2 mt-1">
           <Calendar className="w-4 h-4" />
