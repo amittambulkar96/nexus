@@ -30,26 +30,38 @@ export function Dashboard() {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <TopBar />
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Stats */}
-            <StatsCards stats={stats} />
-
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              {/* Left Column - Task Board */}
-              <div className="xl:col-span-2">
-                <TaskBoard tasks={tasks || []} />
+        <main className="flex-1 overflow-auto">
+          <div className="p-6">
+            <div className="max-w-7xl mx-auto space-y-6">
+              {/* Welcome Section */}
+              <div className="mb-2">
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
+                  Dashboard
+                </h1>
+                <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+                  Monitor your agent team&apos;s performance and activity
+                </p>
               </div>
 
-              {/* Right Column - Activity Feed */}
-              <div>
-                <ActivityFeed activities={activities || []} />
+              {/* Stats */}
+              <StatsCards stats={stats} />
+
+              {/* Main Content Grid */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {/* Left Column - Task Board */}
+                <div className="xl:col-span-2">
+                  <TaskBoard tasks={tasks || []} />
+                </div>
+
+                {/* Right Column - Activity Feed */}
+                <div>
+                  <ActivityFeed activities={activities || []} />
+                </div>
               </div>
+
+              {/* Agents Section */}
+              <AgentCards agents={agents || []} />
             </div>
-
-            {/* Agents Section */}
-            <AgentCards agents={agents || []} />
           </div>
         </main>
       </div>
