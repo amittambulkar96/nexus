@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Users, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Users, Clock, CheckCircle2, AlertOctagon, TrendingUp } from "lucide-react";
 
 interface StatsCardsProps {
   stats: {
@@ -15,55 +15,86 @@ interface StatsCardsProps {
 
 export function StatsCards({ stats, className }: StatsCardsProps) {
   const cards = [
-    { 
-      label: "Active", 
-      value: stats.active, 
+    {
+      label: "Active Agents",
+      value: stats.active,
       icon: Users,
-      color: "text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
-      iconColor: "text-blue-500"
+      color: "#10b981",
+      bgColor: "bg-[#10b981]/10",
+      borderColor: "border-[#10b981]/30",
+      trend: "+12%",
     },
-    { 
-      label: "In Progress", 
-      value: stats.inProgress, 
+    {
+      label: "In Progress",
+      value: stats.inProgress,
       icon: Clock,
-      color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800",
-      iconColor: "text-yellow-500"
+      color: "#ffb800",
+      bgColor: "bg-[#ffb800]/10",
+      borderColor: "border-[#ffb800]/30",
+      trend: "+5%",
     },
-    { 
-      label: "Completed", 
-      value: stats.completed, 
-      icon: CheckCircle,
-      color: "text-green-600 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800",
-      iconColor: "text-green-500"
+    {
+      label: "Completed",
+      value: stats.completed,
+      icon: CheckCircle2,
+      color: "#00f0ff",
+      bgColor: "bg-[#00f0ff]/10",
+      borderColor: "border-[#00f0ff]/30",
+      trend: "+23%",
     },
-    { 
-      label: "Blocked", 
-      value: stats.blocked, 
-      icon: AlertCircle,
-      color: "text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800",
-      iconColor: "text-red-500"
+    {
+      label: "Blocked",
+      value: stats.blocked,
+      icon: AlertOctagon,
+      color: "#f43f5e",
+      bgColor: "bg-[#f43f5e]/10",
+      borderColor: "border-[#f43f5e]/30",
+      trend: "-2%",
     },
   ];
 
   return (
-    <div className={cn("grid grid-cols-2 md:grid-cols-4 gap-4", className)}>
-      {cards.map((card) => (
+    <div className={cn("grid grid-cols-2 lg:grid-cols-4 gap-4", className)}>
+      {cards.map((card, index) => (
         <div
           key={card.label}
           className={cn(
-            "bg-white dark:bg-zinc-900 rounded-xl p-4 border",
-            card.color
+            "relative overflow-hidden rounded-2xl border p-5 transition-all duration-300",
+            "bg-[#12121a] hover:bg-[#1a1a25]",
+            card.borderColor,
+            "hover-lift"
           )}
+          style={{ animationDelay: `${index * 50}ms` }}
         >
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              {card.label}
-            </span>
-            <card.icon className={cn("w-4 h-4", card.iconColor)} />
+          {/* Background glow */}
+          <div
+            className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-20 blur-2xl"
+            style={{ backgroundColor: card.color }}
+          />
+
+          <div className="relative">
+            <div className="flex items-start justify-between mb-4">
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center",
+                  card.bgColor
+                )}
+              >
+                <card.icon className="w-6 h-6" style={{ color: card.color }} />
+              </div>
+              <div className="flex items-center gap-1 text-xs font-medium">
+                <TrendingUp className="w-3 h-3" style={{ color: card.color }} />
+                <span style={{ color: card.color }}>{card.trend}</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                {card.value}
+              </p>
+              <p className="text-sm text-[#9ca3af] mt-1">{card.label}</p>
+            </div>
           </div>
-          <p className="text-3xl font-bold text-zinc-900 dark:text-white mt-2">
-            {card.value}
-          </p>
         </div>
       ))}
     </div>

@@ -2,71 +2,92 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Bell, Search, Calendar } from "lucide-react";
+import { Bell, Search, Menu, Plus } from "lucide-react";
 
 interface TopBarProps {
   className?: string;
+  onMenuClick?: () => void;
 }
 
-export function TopBar({ className }: TopBarProps) {
+export function TopBar({ className, onMenuClick }: TopBarProps) {
   const [currentTime, setCurrentTime] = useState<string>("");
+  const [currentDate, setCurrentDate] = useState<string>("");
 
   useEffect(() => {
-    const updateTime = () => {
+    const updateDateTime = () => {
       const now = new Date();
-      setCurrentTime(
+      setCurrentDate(
         now.toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
+          month: "short",
           day: "numeric",
           year: "numeric",
         })
       );
+      setCurrentTime(
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      );
     };
 
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 1000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <header
       className={cn(
-        "flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-10",
+        "sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4",
+        "bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-[#27273a]",
         className
       )}
     >
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
-          <span className="text-white font-bold">N</span>
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-white">
-            Nexus
-          </h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            {currentTime}
-          </p>
-        </div>
-      </div>
-      
       <div className="flex items-center gap-4">
+        {/* Mobile menu button */}
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-2 hover:bg-[#27273a] rounded-lg transition-colors"
+        >
+          <Menu className="w-5 h-5 text-[#9ca3af]" />
+        </button>
+
         {/* Search */}
-        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg w-64">
-          <Search className="w-4 h-4 text-zinc-400" />
-          <input 
-            type="text" 
-            placeholder="Search agents, tasks..." 
-            className="bg-transparent border-none outline-none text-sm text-zinc-700 dark:text-zinc-300 placeholder:text-zinc-400 w-full"
+        <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#12121a] border border-[#27273a] rounded-xl w-64 lg:w-80 focus-within:border-[#00f0ff]/50 transition-colors">
+          <Search className="w-4 h-4 text-[#6b7280]" />
+          <input
+            type="text"
+            placeholder="Search agents, tasks..."
+            className="bg-transparent border-none outline-none text-sm text-white placeholder:text-[#6b7280] w-full"
           />
         </div>
-        
-        {/* Notifications */}
-        <button className="relative p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-          <Bell className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+      </div>
+
+      <div className="flex items-center gap-3 sm:gap-6">
+        {/* DateTime */}
+        <div className="hidden md:flex flex-col items-end">
+          <span className="text-sm text-white font-mono">{currentTime}</span>
+          <span className="text-xs text-[#6b7280]">{currentDate}</span>
+        </div>
+
+        {/* Add button */}
+        <button className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#00f0ff] text-[#0a0a0f] rounded-xl font-semibold text-sm hover:bg-[#00f0ff]/90 transition-colors">
+          <Plus className="w-4 h-4" />
+          New Task
         </button>
+
+        {/* Notifications */}
+        <button className="relative p-2.5 hover:bg-[#27273a] rounded-xl transition-colors">
+          <Bell className="w-5 h-5 text-[#9ca3af]" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#f43f5e] rounded-full pulse-glow" />
+        </button>
+
+        {/* User Avatar */}
+        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-[#00f0ff] to-[#a855f7] rounded-xl flex items-center justify-center shadow-lg shadow-[#00f0ff]/20">
+          <span className="text-white font-bold text-sm">A</span>
+        </div>
       </div>
     </header>
   );
