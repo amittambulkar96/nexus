@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { api } from "@/../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import { 
   Sheet,
@@ -10,9 +10,9 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+} from "../../components/ui/sheet";
+import { Badge } from "../../components/ui/badge";
+import { Separator } from "../../components/ui/separator";
 import { 
   Bot, 
   Zap, 
@@ -20,379 +20,488 @@ import {
   Clock, 
   CheckCircle2, 
   MoreHorizontal,
-  Activity,
+  Menu,
+  ChevronRight,
+  Play,
+  FileText,
+  Bell,
+  LayoutDashboard,
+  Settings,
+  Plus,
   Terminal,
-  ChevronRight
 } from "lucide-react";
+import { clsx } from "clsx";
 import { cn } from "@/lib/utils";
+import { TopBar } from "../../components/TopBar";
+import { Sidebar } from "../../components/Sidebar";
+import { StatsCards } from "../../components/StatsCards";
+import { ActivityFeed } from "../../components/ActivityFeed";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+const dmSans = DM_Sans({ 
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+const jetbrainsMono = JetBrains_Mono({ 
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+  variable: "--font-jetbrains-mono",
 });
-
-interface Task {
-  _id: string;
-  title: string;
-  description?: string;
-  status: "inbox" | "assigned" | "in_progress" | "review" | "done" | "blocked";
-  assigneeIds?: string[];
-  createdAt: number;
-}
 
 interface Agent {
   _id: string;
   name: string;
-  role: string;
-  status: "idle" | "active" | "blocked";
-  currentTaskId?: string;
+  status: "active" | "idle" | "error";
+  avatar?: string;
+  model: string;
+  tasksCompleted: number;
 }
 
-const columns = [
-  { key: "inbox", label: "Inbox", color: "#78716c" },
-  { key: "in_progress", label: "In Progress", color: "#d97706" },
-  { key: "review", label: "Review", color: "#0891b2" },
-  { key: "done", label: "Done", color: "#059669" },
+interface Task {
+  _id: string;
+  title: string;
+  status: "todo" | "in_progress" | "done" | "blocked";
+  priority: "low" | "medium" | "high";
+  agent?: string;
+  dueDate?: string;
+  description?: string;
+  output?: string;
+}
+
+const mockAgents: Agent[] = [
+  { _id: "1", name: "Code Reviewer", status: "active", model: "Claude 4", tasksCompleted: 127 },
+  { _id: "2", name: "Test Generator", status: "idle", model: "GPT-4", tasksCompleted: 89 },
+  { _id: "3", name: "Docs Writer", status: "active", model: "Claude 3.5", tasksCompleted: 45 },
+  { _id: "4", name: "Bug Hunter", status: "error", model: "GPT-4 Turbo", tasksCompleted: 234 },
+  { _id: "5", name: "Refactor Bot", status: "active", model: "Claude 3", tasksCompleted: 67 },
 ];
 
-export default function DashboardOne() {
+const mockTasks: Task[] = [
+  { 
+    _id: "1", 
+    title: "Implement authentication flow", 
+    status: "in_progress", 
+    priority: "high",
+    agent: "1",
+    dueDate: "2024-01-15",
+    description: "Add JWT-based authentication with refresh tokens",
+    output: "✓ Generated auth middleware\n✓ Implemented login handler\n✓ Added token refresh logic"
+  },
+  { 
+    _id: "2", 
+    title: "Write unit tests for utils", 
+    status: "todo", 
+    priority: "medium",
+    agent: "2",
+    dueDate: "2024-01-16",
+    description: "Create comprehensive test suite for helper functions"
+  },
+  { 
+    _id: "3", 
+    title: "Update API documentation", 
+    status: "done", 
+    priority: "low",
+    agent: "3",
+    dueDate: "2024-01-14",
+    description: "Document all REST endpoints with examples"
+  },
+  { 
+    _id: "4", 
+    title: "Fix memory leak in worker", 
+    status: "blocked", 
+    priority: "high",
+    agent: "4",
+    dueDate: "2024-01-13",
+    description: "Investigate and resolve OOM issues"
+  },
+  { 
+    _id: "5", 
+    title: "Refactor database schema", 
+    status: "todo", 
+    priority: "medium",
+    agent: "5",
+    dueDate: "2024-01-18",
+    description: "Normalize user tables and add indexes"
+  },
+];
+
+export default function DashboardPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  
-  const agents = useQuery(api.agents.index.list) || [];
-  const tasks = useQuery(api.tasks.index.list) || [];
-
-  const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
-    setSelectedAgent(null);
-    setSheetOpen(true);
-  };
-
-  const handleAgentClick = (agent: Agent) => {
-    setSelectedAgent(agent);
-    setSelectedTask(null);
-    setSheetOpen(true);
-  };
-
-  const getTasksByStatus = (status: string) =>
-    tasks.filter((task) => task.status === status);
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "active": return <Zap className="w-3.5 h-3.5" />;
-      case "blocked": return <AlertTriangle className="w-3.5 h-3.5" />;
-      default: return <Clock className="w-3.5 h-3.5" />;
-    }
-  };
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active": return "text-emerald-600 bg-emerald-50 border-emerald-200";
-      case "blocked": return "text-rose-600 bg-rose-50 border-rose-200";
-      default: return "text-stone-500 bg-stone-100 border-stone-200";
+      case "active": return "text-emerald-600 bg-emerald-50";
+      case "idle": return "text-slate-500 bg-slate-100";
+      case "error": return "text-red-500 bg-red-50";
+      case "done": return "text-emerald-600 bg-emerald-50";
+      case "in_progress": return "text-amber-600 bg-amber-50";
+      case "blocked": return "text-red-600 bg-red-50";
+      case "todo": return "text-slate-600 bg-slate-100";
+      default: return "text-slate-600 bg-slate-100";
     }
   };
 
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case "high": return <AlertTriangle className="w-3.5 h-3.5 text-red-500" />;
+      case "medium": return <Clock className="w-3.5 h-3.5 text-amber-500" />;
+      case "low": return <Zap className="w-3.5 h-3.5 text-blue-500" />;
+      default: return null;
+    }
+  };
+
+  const stats = {
+    active: mockAgents.filter(a => a.status === "active").length,
+    inProgress: mockTasks.filter(t => t.status === "in_progress").length,
+    completed: mockTasks.filter(t => t.status === "done").length,
+    blocked: mockTasks.filter(t => t.status === "blocked").length,
+  };
+
   return (
-    <div className={`${dmSans.variable} ${jetbrainsMono.variable} min-h-screen bg-white`}>
-      <div className="flex h-screen">
-        {/* Sidebar - Agents */}
-        <aside className="w-72 border-r border-stone-200 bg-stone-50/50 flex flex-col">
-          <div className="p-6 border-b border-stone-200">
+    <div className={cn("min-h-screen bg-slate-50", dmSans.variable, jetbrainsMono.variable)}>
+      <aside className={cn(
+        "fixed left-0 top-0 z-40 h-screen bg-white border-r border-slate-200 transition-all duration-300",
+        sidebarCollapsed ? "w-20" : "w-72"
+      )}>
+        <div className="flex flex-col h-full">
+          <div className="h-16 flex items-center px-6 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-stone-800 rounded flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+                <Bot className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h1 className="font-semibold text-stone-900 text-lg tracking-tight">Nexus</h1>
-                <p className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Agent OS</p>
-              </div>
+              {!sidebarCollapsed && (
+                <span className="font-semibold text-slate-900">Nexus</span>
+              )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Agents</h2>
-              <span className="text-xs text-stone-400 font-mono">{agents.length}</span>
-            </div>
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <a href="/1" className="flex items-center gap-3 px-3 py-2.5 bg-slate-100 text-slate-900 rounded-lg font-medium">
+              <LayoutDashboard className="w-5 h-5" />
+              {!sidebarCollapsed && <span>Dashboard</span>}
+            </a>
+            {!sidebarCollapsed && (
+              <>
+                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                  <Bot className="w-5 h-5" />
+                  <span>Agents</span>
+                </a>
+                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                  <FileText className="w-5 h-5" />
+                  <span>Tasks</span>
+                </a>
+                <a href="#" className="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </a>
+              </>
+            )}
+          </nav>
 
-            <div className="space-y-1">
-              {agents.map((agent) => (
-                <button
-                  key={agent._id}
-                  onClick={() => handleAgentClick(agent)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded hover:bg-stone-100 transition-colors group text-left"
-                >
+          {!sidebarCollapsed && (
+            <div className="p-4 border-t border-slate-100 space-y-2">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Active Agents</p>
+              {mockAgents.filter(a => a.status === "active").slice(0, 3).map((agent) => (
+                <div key={agent._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
                   <div className="relative">
-                    <div className="w-8 h-8 bg-stone-200 rounded flex items-center justify-center">
-                      <span className="text-xs font-semibold text-stone-600">
-                        {agent.name.charAt(0).toUpperCase()}
-                      </span>
+                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+                      <Bot className="w-4 h-4 text-slate-600" />
                     </div>
-                    <div className={cn(
-                      "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-stone-50",
-                      agent.status === "active" ? "bg-emerald-500" : 
-                      agent.status === "blocked" ? "bg-rose-500" : "bg-stone-400"
-                    )} />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-900 truncate">{agent.name}</p>
-                    <p className="text-xs text-stone-500 truncate">{agent.role}</p>
+                    <p className="text-sm font-medium text-slate-700 truncate">{agent.name}</p>
+                    <p className="text-xs text-slate-400">{agent.tasksCompleted} tasks</p>
                   </div>
-                  {agent.status === "active" && (
-                    <Activity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                  )}
-                </button>
+                </div>
               ))}
             </div>
-          </div>
+          )}
 
-          <div className="p-4 border-t border-stone-200">
-            <div className="flex items-center gap-2 text-xs text-stone-500">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span className="font-mono">{agents.filter(a => a.status === "active").length} active</span>
-            </div>
+          <div className="p-4 border-t border-slate-100">
+            <button 
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+            >
+              <ChevronRight className={cn("w-5 h-5 transition-transform", !sidebarCollapsed && "rotate-180")} />
+              {!sidebarCollapsed && <span className="text-sm">Collapse</span>}
+            </button>
           </div>
-        </aside>
+        </div>
+      </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
-          <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-stone-200 px-8 py-4">
-            <div className="flex items-center justify-between">
+      <div className={cn(
+        "transition-all duration-300",
+        sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+      )}>
+        <header className="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200">
+          <div className="flex items-center justify-between h-full px-6">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden p-2 -ml-2 hover:bg-slate-100 rounded-lg"
+              >
+                <Menu className="w-5 h-5 text-slate-600" />
+              </button>
               <div>
-                <h1 className="text-2xl font-semibold text-stone-900 tracking-tight">Command Center</h1>
-                <p className="text-sm text-stone-500 mt-0.5">Monitor and manage your agent workforce</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <a 
-                  href="/2" 
-                  className="px-3 py-1.5 text-sm text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded transition-colors"
-                >
-                  Design 2
-                </a>
-                <a 
-                  href="/3" 
-                  className="px-3 py-1.5 text-sm text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded transition-colors"
-                >
-                  Design 3
-                </a>
+                <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
+                <p className="text-sm text-slate-500">Welcome back, Alex</p>
               </div>
             </div>
-          </header>
-
-          <div className="p-8 max-w-7xl mx-auto">
-            {/* Task Board */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-stone-900 uppercase tracking-wider">Task Board</h2>
-                <span className="text-xs text-stone-500 font-mono">{tasks.length} tasks</span>
+            <div className="flex items-center gap-3">
+              <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <Clock className="w-5 h-5 text-slate-600" />
+              </button>
+              <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                <Bell className="w-5 h-5 text-slate-600" />
+              </button>
+              <div className="w-9 h-9 bg-slate-800 rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-white">A</span>
               </div>
+            </div>
+          </div>
+        </header>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {columns.map((column) => {
-                  const columnTasks = getTasksByStatus(column.key);
-                  
-                  return (
-                    <div key={column.key} className="flex flex-col">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: column.color }}
-                        />
-                        <h3 className="text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                          {column.label}
-                        </h3>
-                        <span className="text-xs text-stone-400 font-mono ml-auto">
-                          {columnTasks.length}
-                        </span>
-                      </div>
+        <main className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-xl p-5 border border-slate-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-emerald-600" />
+                </div>
+                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">+12%</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900">{stats.active}</p>
+              <p className="text-sm text-slate-500">Active Agents</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 border border-slate-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-amber-600" />
+                </div>
+                <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full">+5%</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900">{stats.inProgress}</p>
+              <p className="text-sm text-slate-500">In Progress</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 border border-slate-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">+23%</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900">{stats.completed}</p>
+              <p className="text-sm text-slate-500">Completed</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 border border-slate-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">-2</span>
+              </div>
+              <p className="text-2xl font-bold text-slate-900">{stats.blocked}</p>
+              <p className="text-sm text-slate-500">Blocked</p>
+            </div>
+          </div>
 
-                      <div className="space-y-2">
-                        {columnTasks.map((task) => (
-                          <button
-                            key={task._id}
-                            onClick={() => handleTaskClick(task)}
-                            className="w-full text-left p-3 bg-white border border-stone-200 rounded hover:border-stone-300 hover:shadow-sm transition-all group"
-                          >
-                            <div className="flex items-start gap-2">
-                              <div 
-                                className="w-1 h-full min-h-[20px] rounded-full flex-shrink-0"
-                                style={{ backgroundColor: column.color }}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-stone-900 line-clamp-2">
-                                  {task.title}
-                                </p>
-                                {task.assigneeIds && task.assigneeIds.length > 0 && (
-                                  <div className="flex items-center gap-1 mt-2">
-                                    <div className="flex -space-x-1.5">
-                                      {task.assigneeIds.slice(0, 3).map((_, i) => (
-                                        <div
-                                          key={i}
-                                          className="w-5 h-5 rounded-full bg-stone-200 border-2 border-white flex items-center justify-center"
-                                        >
-                                          <span className="text-[8px] font-medium text-stone-600">
-                                            A{i + 1}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-
-                        {columnTasks.length === 0 && (
-                          <div className="p-4 border border-dashed border-stone-200 rounded text-center">
-                            <p className="text-xs text-stone-400">No tasks</p>
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Tasks</h2>
+                <p className="text-sm text-slate-500">Manage and track your agent tasks</p>
+              </div>
+              <button className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                New Task
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Task</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Priority</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Agent</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Due Date</th>
+                    <th className="w-12"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {mockTasks.map((task) => (
+                    <tr 
+                      key={task._id} 
+                      className="hover:bg-slate-50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedTask(task)}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-1.5 h-8 rounded-full",
+                            task.status === "done" ? "bg-emerald-500" :
+                            task.status === "in_progress" ? "bg-amber-500" :
+                            task.status === "blocked" ? "bg-red-500" : "bg-slate-300"
+                          )} />
+                          <div>
+                            <p className="font-medium text-slate-900">{task.title}</p>
+                            <p className="text-sm text-slate-500 line-clamp-1">{task.description}</p>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge className={getStatusColor(task.status)}>
+                          {task.status.replace("_", " ")}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          {getPriorityIcon(task.priority)}
+                          <span className="text-sm text-slate-600 capitalize">{task.priority}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center">
+                            <Bot className="w-3.5 h-3.5 text-slate-600" />
+                          </div>
+                          <span className="text-sm text-slate-600">{mockAgents.find(a => a._id === task.agent)?.name || "Unassigned"}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {task.dueDate || "No deadline"}
+                      </td>
+                      <td className="px-2">
+                        <button className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                          <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="mt-8 bg-white rounded-xl border border-slate-200 p-5">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Recent Activity</h2>
+            <div className="space-y-4">
+              {[
+                { agent: "Code Reviewer", action: "completed review of", target: "auth.tsx", time: "2 min ago", status: "done" },
+                { agent: "Test Generator", action: "started generating tests for", target: "utils.test.ts", time: "15 min ago", status: "pending" },
+                { agent: "Docs Writer", action: "updated documentation for", target: "API Endpoints", time: "1 hour ago", status: "done" },
+                { agent: "Bug Hunter", action: "found critical bug in", target: "payment-worker.js", time: "2 hours ago", status: "blocked" },
+              ].map((activity, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">
+                      <span className="font-medium text-slate-900">{activity.agent}</span>
+                      {" "}{activity.action}{" "}
+                      <span className="font-medium text-slate-700">{activity.target}</span>
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">{activity.time}</p>
+                  </div>
+                  <Badge className={cn(
+                    "text-xs",
+                    activity.status === "done" ? "bg-emerald-50 text-emerald-700" :
+                    activity.status === "pending" ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
+                  )}>
+                    {activity.status}
+                  </Badge>
+                </div>
+              ))}
             </div>
           </div>
         </main>
       </div>
 
-      {/* Sheet for Task/Agent Details */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-[500px] bg-white border-l border-stone-200">
+      <Sheet open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
+        <SheetContent className="sm:max-w-lg bg-white border-l border-slate-200">
+          <SheetHeader className="pb-4 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-lg font-semibold text-slate-900">Task Details</SheetTitle>
+              <Badge className={getStatusColor(selectedTask?.status || "")}>
+                {selectedTask?.status?.replace("_", " ")}
+              </Badge>
+            </div>
+            <SheetDescription className="text-slate-500">
+              Task ID: {selectedTask?._id}
+            </SheetDescription>
+          </SheetHeader>
+          
           {selectedTask && (
-            <>
-              <SheetHeader className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={cn(
-                      "text-xs font-mono uppercase",
-                      getStatusColor(selectedTask.status)
-                    )}
-                  >
-                    {selectedTask.status}
-                  </Badge>
+            <div className="mt-6 space-y-6">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">{selectedTask.title}</h3>
+                <p className="text-slate-600">{selectedTask.description}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Priority</p>
+                  <div className="flex items-center gap-2">
+                    {getPriorityIcon(selectedTask.priority)}
+                    <span className="font-medium text-slate-900 capitalize">{selectedTask.priority}</span>
+                  </div>
                 </div>
-                <SheetTitle className="text-xl font-semibold text-stone-900">
-                  {selectedTask.title}
-                </SheetTitle>
-                {selectedTask.description && (
-                  <SheetDescription className="text-sm text-stone-600">
-                    {selectedTask.description}
-                  </SheetDescription>
-                )}
-              </SheetHeader>
-
-              <Separator className="my-6" />
-
-              <div className="space-y-6">
-                {selectedTask.status === "done" && (
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider flex items-center gap-2">
-                      <Terminal className="w-3.5 h-3.5" />
-                      Agent Output
-                    </h3>
-                    <div className="bg-stone-950 rounded p-4 font-mono text-xs text-stone-300 overflow-x-auto">
-                      <div className="space-y-1">
-                        <p><span className="text-emerald-400">$</span> task completed successfully</p>
-                        <p><span className="text-stone-500">[</span><span className="text-amber-400">INFO</span><span className="text-stone-500">]</span> Processing started at {new Date(selectedTask.createdAt).toLocaleTimeString()}</p>
-                        <p><span className="text-stone-500">[</span><span className="text-emerald-400">SUCCESS</span><span className="text-stone-500">]</span> All requirements met</p>
-                        <p><span className="text-stone-500">[</span><span className="text-cyan-400">OUTPUT</span><span className="text-stone-500">]</span> Generated deliverable ready for review</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Details</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-stone-500">Created</span>
-                      <span className="text-stone-900 font-mono">
-                        {new Date(selectedTask.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-stone-500">Assignees</span>
-                      <span className="text-stone-900">
-                        {selectedTask.assigneeIds?.length || 0} agents
-                      </span>
-                    </div>
-                  </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Due Date</p>
+                  <p className="font-medium text-slate-900">{selectedTask.dueDate || "No deadline"}</p>
                 </div>
               </div>
-            </>
-          )}
 
-          {selectedAgent && (
-            <>
-              <SheetHeader className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-stone-200 rounded flex items-center justify-center">
-                    <span className="text-lg font-semibold text-stone-700">
-                      {selectedAgent.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <SheetTitle className="text-xl font-semibold text-stone-900">
-                      {selectedAgent.name}
-                    </SheetTitle>
-                    <p className="text-sm text-stone-500">{selectedAgent.role}</p>
-                  </div>
-                </div>
-              </SheetHeader>
-
-              <Separator className="my-6" />
-
-              <div className="space-y-6">
-                <div className="flex items-center gap-2">
-                  <Badge className={cn("text-xs", getStatusColor(selectedAgent.status))}>
-                    {getStatusIcon(selectedAgent.status)}
-                    <span className="ml-1 capitalize">{selectedAgent.status}</span>
-                  </Badge>
-                </div>
-
-                {selectedAgent.currentTaskId && (
-                  <div className="space-y-3">
-                    <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Current Task</h3>
-                    <div className="p-3 bg-stone-50 border border-stone-200 rounded">
-                      <p className="text-sm text-stone-700 font-mono">{selectedAgent.currentTaskId}</p>
+              {selectedTask.agent && (
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Assigned Agent</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
+                      <Bot className="w-5 h-5 text-slate-600" />
                     </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Activity Log</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2 text-sm">
-                      <Clock className="w-3.5 h-3.5 text-stone-400 mt-0.5" />
-                      <div>
-                        <p className="text-stone-900">Task completed</p>
-                        <p className="text-xs text-stone-500">2 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 text-sm">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-stone-400 mt-0.5" />
-                      <div>
-                        <p className="text-stone-900">Came online</p>
-                        <p className="text-xs text-stone-500">5 hours ago</p>
-                      </div>
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {mockAgents.find(a => a._id === selectedTask.agent)?.name}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {mockAgents.find(a => a._id === selectedTask.agent)?.model}
+                      </p>
                     </div>
                   </div>
                 </div>
+              )}
+
+              {selectedTask.output && (
+                <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Terminal className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-300">Agent Output</span>
+                  </div>
+                  <pre className="text-sm text-slate-400 font-mono whitespace-pre-wrap">
+                    {selectedTask.output}
+                  </pre>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  className="flex-1 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+                  onClick={() => console.log("Run agent")}
+                >
+                  <Play className="w-4 h-4" />
+                  Run Agent
+                </button>
+                <button className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  View Details
+                </button>
               </div>
-            </>
+            </div>
           )}
         </SheetContent>
       </Sheet>

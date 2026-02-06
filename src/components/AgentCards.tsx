@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 import { Bot, Zap, AlertTriangle, MoreHorizontal, Cpu, Activity } from "lucide-react";
 
 interface Agent {

@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Ensure env vars are available at build time
   env: {
-    NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL || "",
+    NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL || "https://capable-greyhound-314.convex.cloud",
   },
 };
 

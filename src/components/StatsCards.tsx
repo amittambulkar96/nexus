@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 import { Users, Clock, CheckCircle2, AlertOctagon, TrendingUp } from "lucide-react";
 
 interface StatsCardsProps {

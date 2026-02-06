@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { Inter } from "next/font/google";
 import { 
   Sheet,
@@ -10,450 +10,371 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+} from "../../components/ui/sheet";
+import { Badge } from "../../components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
+import { Button } from "../../components/ui/button";
 import { 
   Bot, 
   Zap, 
   AlertTriangle, 
   Clock, 
-  CheckCircle2,
-  Activity,
+  CheckCircle2, 
+  MoreHorizontal,
+  Menu,
+  ChevronRight,
+  Play,
+  FileText,
+  Bell,
+  LayoutDashboard,
+  Settings,
+  Plus,
   Terminal,
-  Sparkles,
-  GitBranch,
-  Layers,
   TrendingUp,
-  Users
+  Users,
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 interface Task {
   _id: string;
   title: string;
+  status: "todo" | "in_progress" | "done" | "blocked";
+  priority: "low" | "medium" | "high";
+  agent?: string;
+  dueDate?: string;
   description?: string;
-  status: "inbox" | "assigned" | "in_progress" | "review" | "done" | "blocked";
-  assigneeIds?: string[];
-  priority?: "low" | "medium" | "high";
-  createdAt: number;
+  output?: string;
 }
 
-interface Agent {
-  _id: string;
-  name: string;
-  role: string;
-  status: "idle" | "active" | "blocked";
-  currentTaskId?: string;
-  avatar?: string;
+interface TaskWithAgent extends Task {
+  agentData?: { name: string; avatar?: string };
 }
 
-const columns = [
-  { key: "inbox", label: "Inbox", color: "#6B7280", lightColor: "bg-gray-100" },
-  { key: "in_progress", label: "In Progress", color: "#3B82F6", lightColor: "bg-blue-50" },
-  { key: "review", label: "Review", color: "#F59E0B", lightColor: "bg-amber-50" },
-  { key: "done", label: "Done", color: "#10B981", lightColor: "bg-emerald-50" },
+const mockTasks: TaskWithAgent[] = [
+  { 
+    _id: "1", 
+    title: "Implement authentication flow", 
+    status: "in_progress", 
+    priority: "high",
+    agent: "1",
+    agentData: { name: "Code Reviewer", avatar: "CR" },
+    dueDate: "Jan 15, 2024",
+    description: "Add JWT-based authentication with refresh tokens for the new API endpoints.",
+    output: "✓ Generated auth middleware\n✓ Implemented login handler\n✓ Added token refresh logic"
+  },
+  { 
+    _id: "2", 
+    title: "Write unit tests for utils", 
+    status: "todo", 
+    priority: "medium",
+    agent: "2",
+    agentData: { name: "Test Generator", avatar: "TG" },
+    dueDate: "Jan 16, 2024",
+    description: "Create comprehensive test suite for helper functions including date formatting and validation."
+  },
+  { 
+    _id: "3", 
+    title: "Update API documentation", 
+    status: "done", 
+    priority: "low",
+    agent: "3",
+    agentData: { name: "Docs Writer", avatar: "DW" },
+    dueDate: "Jan 14, 2024",
+    description: "Document all REST endpoints with request/response examples."
+  },
+  { 
+    _id: "4", 
+    title: "Fix memory leak in worker", 
+    status: "blocked", 
+    priority: "high",
+    agent: "4",
+    agentData: { name: "Bug Hunter", avatar: "BH" },
+    dueDate: "Jan 13, 2024",
+    description: "Investigate and resolve OOM issues in the background worker process."
+  },
+  { 
+    _id: "5", 
+    title: "Refactor database schema", 
+    status: "todo", 
+    priority: "medium",
+    agent: "5",
+    agentData: { name: "Refactor Bot", avatar: "RB" },
+    dueDate: "Jan 18, 2024",
+    description: "Normalize user tables and add proper indexes for improved query performance."
+  },
 ];
 
-export default function DashboardThree() {
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  
-  const agents = useQuery(api.agents.index.list) || [];
-  const tasks = useQuery(api.tasks.index.list) || [];
+const mockStats = [
+  { label: "Total Tasks", value: "248", change: "+12%", trend: "up", icon: FileText },
+  { label: "Active Agents", value: "12", change: "+3", trend: "up", icon: Bot },
+  { label: "Completion Rate", value: "94%", change: "+2.4%", trend: "up", icon: TrendingUp },
+  { label: "Avg. Time", value: "2.4h", change: "-0.5h", trend: "down", icon: Clock },
+];
 
-  const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
-    setSelectedAgent(null);
-    setSheetOpen(true);
-  };
+export default function DashboardPage3() {
+  const [selectedTask, setSelectedTask] = useState<TaskWithAgent | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "completed">("all");
 
-  const handleAgentClick = (agent: Agent) => {
-    setSelectedAgent(agent);
-    setSelectedTask(null);
-    setSheetOpen(true);
-  };
-
-  const getTasksByStatus = (status: string) =>
-    tasks.filter((task) => task.status === status);
-
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case "high": return "bg-rose-500";
-      case "medium": return "bg-amber-500";
-      default: return "bg-blue-500";
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active": return "bg-emerald-100 text-emerald-700";
+      case "idle": return "bg-slate-100 text-slate-600";
+      case "error": return "bg-red-100 text-red-700";
+      case "done": return "bg-blue-100 text-blue-700";
+      case "in_progress": return "bg-amber-100 text-amber-700";
+      case "blocked": return "bg-red-100 text-red-700";
+      case "todo": return "bg-slate-100 text-slate-600";
+      default: return "bg-slate-100 text-slate-600";
     }
   };
 
-  const stats = {
-    totalAgents: agents.length,
-    activeAgents: agents.filter(a => a.status === "active").length,
-    totalTasks: tasks.length,
-    completedTasks: tasks.filter(t => t.status === "done").length,
+  const getPriorityStyles = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-50 border-red-200 text-red-700";
+      case "medium": return "bg-amber-50 border-amber-200 text-amber-700";
+      case "low": return "bg-blue-50 border-blue-200 text-blue-700";
+      default: return "bg-slate-50 border-slate-200 text-slate-600";
+    }
+  };
+
+  const filteredTasks = mockTasks.filter(task => {
+    if (activeTab === "all") return true;
+    if (activeTab === "active") return task.status === "in_progress" || task.status === "todo";
+    if (activeTab === "completed") return task.status === "done";
+    return true;
+  });
+
+  const taskCounts = {
+    all: mockTasks.length,
+    active: mockTasks.filter(t => t.status === "in_progress" || t.status === "todo").length,
+    completed: mockTasks.filter(t => t.status === "done").length,
   };
 
   return (
-    <div className={`${inter.variable} min-h-screen bg-slate-50 text-slate-900 font-sans`}>
-      <div className="flex h-screen">
-        {/* Sidebar - Agents */}
-        <aside className="w-72 border-r border-slate-200 bg-white flex flex-col shadow-sm">
-          <div className="p-5 border-b border-slate-100">
+    <div className={cn("min-h-screen bg-slate-50", inter.className)}>
+      <nav className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 z-40">
+        <div className="flex items-center justify-between h-full px-6">
+          <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
                 <Bot className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h1 className="font-semibold text-slate-900 text-base tracking-tight">Nexus</h1>
-                <p className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">Agent OS</p>
+              <span className="font-semibold text-slate-900">Nexus</span>
+            </div>
+            <div className="hidden md:flex items-center gap-1">
+              <a href="/3" className="px-3 py-2 text-sm font-medium text-slate-900 bg-slate-100 rounded-lg">Dashboard</a>
+              <a href="#" className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors">Agents</a>
+              <a href="#" className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors">Tasks</a>
+              <a href="#" className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors">Analytics</a>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+              <Bell className="w-5 h-5 text-slate-600" />
+            </button>
+            <Avatar className="w-8 h-8">
+              <AvatarFallback className="bg-slate-800 text-white text-sm">A</AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
+      </nav>
+
+      <main className="pt-24 px-6 pb-12 max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500">Track your agent performance and task progress</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {mockStats.map((stat, i) => (
+            <div key={i} className="bg-white rounded-xl p-5 border border-slate-200 hover:border-slate-300 transition-colors">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center">
+                  <stat.icon className="w-5 h-5 text-slate-600" />
+                </div>
+                <div className={cn(
+                  "flex items-center gap-1 text-xs font-medium",
+                  stat.trend === "up" ? "text-emerald-600" : "text-amber-600"
+                )}>
+                  {stat.trend === "up" ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                  {stat.change}
+                </div>
               </div>
+              <p className="text-2xl font-semibold text-slate-900">{stat.value}</p>
+              <p className="text-sm text-slate-500">{stat.label}</p>
             </div>
-          </div>
+          ))}
+        </div>
 
-          <div className="flex-1 overflow-y-auto p-3">
-            <div className="flex items-center justify-between mb-3 px-2">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Agents</h2>
-              <span className="text-[10px] text-slate-400 font-medium bg-slate-100 px-2 py-0.5 rounded-full">{agents.length}</span>
+        <div className="bg-white rounded-xl border border-slate-200">
+          <div className="p-5 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Tasks</h2>
+              <p className="text-sm text-slate-500">Manage and track your agent tasks</p>
             </div>
-
-            <div className="space-y-1">
-              {agents.map((agent) => (
-                <button
-                  key={agent._id}
-                  onClick={() => handleAgentClick(agent)}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-all group text-left"
-                >
-                  <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-semibold">
-                      {agent.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className={cn(
-                      "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white",
-                      agent.status === "active" ? "bg-emerald-500" : 
-                      agent.status === "blocked" ? "bg-rose-500" : "bg-slate-400"
-                    )} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">{agent.name}</p>
-                    <p className="text-xs text-slate-500 truncate">{agent.role}</p>
-                  </div>
-                  {agent.status === "active" && (
-                    <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-4 border-t border-slate-100 bg-slate-50/50">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-xs text-slate-600 font-medium">
-                {agents.filter(a => a.status === "active").length} agents active
-              </span>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
-          <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <h1 className="text-lg font-semibold text-slate-900 tracking-tight">Command Center</h1>
-                <span className="px-2 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 rounded-full border border-blue-100">
-                  v2.0
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <a 
-                  href="/1" 
-                  className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Design 1
-                </a>
-                <a 
-                  href="/2" 
-                  className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Design 2
-                </a>
-              </div>
-            </div>
-          </header>
-
-          <div className="p-6 max-w-7xl mx-auto">
-            {/* Stats Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Agents</span>
-                </div>
-                <p className="text-2xl font-semibold text-slate-900">{stats.totalAgents}</p>
-                <p className="text-xs text-slate-500 mt-1">{stats.activeAgents} active</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <Layers className="w-4 h-4 text-indigo-500" />
-                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Tasks</span>
-                </div>
-                <p className="text-2xl font-semibold text-slate-900">{stats.totalTasks}</p>
-                <p className="text-xs text-slate-500 mt-1">{stats.completedTasks} completed</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Progress</span>
-                </div>
-                <p className="text-2xl font-semibold text-slate-900">
-                  {stats.totalTasks > 0 ? Math.round((stats.completedTasks / stats.totalTasks) * 100) : 0}%
-                </p>
-                <p className="text-xs text-slate-500 mt-1">Completion rate</p>
-              </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Status</span>
-                </div>
-                <p className="text-2xl font-semibold text-slate-900">
-                  {agents.filter(a => a.status === "active").length > 0 ? "Active" : "Idle"}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">System status</p>
-              </div>
-            </div>
-
-            {/* Task Board */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Layers className="w-4 h-4 text-slate-400" />
-                  <h2 className="text-sm font-semibold text-slate-900">Task Board</h2>
-                </div>
-                <span className="text-xs text-slate-400 font-medium bg-slate-100 px-2 py-1 rounded-full">{tasks.length} tasks</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {columns.map((column) => {
-                  const columnTasks = getTasksByStatus(column.key);
-                  
-                  return (
-                    <div key={column.key} className="flex flex-col">
-                      <div className="flex items-center gap-2 mb-3 px-1">
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: column.color }}
-                        />
-                        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                          {column.label}
-                        </h3>
-                        <span className="text-xs text-slate-400 font-medium ml-auto">
-                          {columnTasks.length}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2">
-                        {columnTasks.map((task) => (
-                          <button
-                            key={task._id}
-                            onClick={() => handleTaskClick(task)}
-                            className="w-full text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-slate-300 hover:shadow-md transition-all group"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div 
-                                className="w-1 h-full min-h-[16px] rounded-full flex-shrink-0 mt-0.5"
-                                style={{ backgroundColor: column.color }}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="text-sm font-medium text-slate-900 line-clamp-2">
-                                    {task.title}
-                                  </p>
-                                  {task.priority && (
-                                    <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5", getPriorityColor(task.priority))} />
-                                  )}
-                                </div>
-                                {task.assigneeIds && task.assigneeIds.length > 0 && (
-                                  <div className="flex items-center gap-1 mt-2">
-                                    <div className="flex -space-x-1.5">
-                                      {task.assigneeIds.slice(0, 3).map((_, i) => (
-                                        <div
-                                          key={i}
-                                          className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white flex items-center justify-center"
-                                        >
-                                          <span className="text-[8px] font-medium text-white">
-                                            A{i + 1}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-
-                        {columnTasks.length === 0 && (
-                          <div className="p-4 border border-dashed border-slate-200 rounded-xl text-center bg-slate-50/50">
-                            <p className="text-xs text-slate-400">No tasks</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-
-      {/* Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-[480px] bg-white border-l border-slate-200 p-0">
-          <div className="h-full flex flex-col">
-            {selectedTask && (
-              <>
-                <div className="p-6 border-b border-slate-100">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Badge 
-                      variant="outline" 
-                      className="text-[10px] font-medium uppercase tracking-wider bg-slate-50 border-slate-200 text-slate-600"
-                    >
-                      {selectedTask.status}
-                    </Badge>
-                    {selectedTask.priority && (
-                      <div className={cn("w-1.5 h-1.5 rounded-full", getPriorityColor(selectedTask.priority))} />
+              <div className="flex items-center bg-slate-100 rounded-lg p-1">
+                {(["all", "active", "completed"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm font-medium rounded-md transition-colors capitalize",
+                      activeTab === tab 
+                        ? "bg-white text-slate-900 shadow-sm" 
+                        : "text-slate-600 hover:text-slate-900"
                     )}
-                  </div>
-                  <SheetTitle className="text-lg font-semibold text-slate-900">
-                    {selectedTask.title}
-                  </SheetTitle>
-                  {selectedTask.description && (
-                    <SheetDescription className="text-sm text-slate-600 mt-2">
-                      {selectedTask.description}
-                    </SheetDescription>
-                  )}
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                  {selectedTask.status === "done" && (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        <Terminal className="w-3.5 h-3.5" />
-                        Output
-                      </div>
-                      <div className="bg-slate-900 rounded-lg p-4 font-mono text-xs text-slate-300">
-                        <div className="space-y-1.5">
-                          <p><span className="text-emerald-400">➜</span> Task completed successfully</p>
-                          <p className="text-slate-500"><span className="text-slate-600">│</span></p>
-                          <p className="text-slate-500"><span className="text-slate-600">├─</span> Processing time: 2.3s</p>
-                          <p className="text-slate-500"><span className="text-slate-600">├─</span> Memory usage: 128MB</p>
-                          <p className="text-slate-500"><span className="text-slate-600">└─</span> Deliverables: 3 files generated</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Details</div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-                        <span className="text-slate-500">Created</span>
-                        <span className="text-slate-900 font-medium">
-                          {new Date(selectedTask.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-                        <span className="text-slate-500">Assignees</span>
-                        <span className="text-slate-900 font-medium">
-                          {selectedTask.assigneeIds?.length || 0} agents
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm py-2 border-b border-slate-100">
-                        <span className="text-slate-500">Task ID</span>
-                        <span className="text-slate-400 font-mono text-xs">{selectedTask._id.slice(0, 8)}...</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {selectedAgent && (
-              <>
-                <div className="p-6 border-b border-slate-100">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-semibold">
-                      {selectedAgent.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <SheetTitle className="text-lg font-semibold text-slate-900">
-                        {selectedAgent.name}
-                      </SheetTitle>
-                      <p className="text-sm text-slate-500">{selectedAgent.role}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5",
-                      selectedAgent.status === "active" ? "bg-emerald-100 text-emerald-700 border border-emerald-200" :
-                      selectedAgent.status === "blocked" ? "bg-rose-100 text-rose-700 border border-rose-200" :
-                      "bg-slate-100 text-slate-600 border border-slate-200"
-                    )}>
-                      {selectedAgent.status === "active" ? <Zap className="w-3 h-3" /> :
-                       selectedAgent.status === "blocked" ? <AlertTriangle className="w-3 h-3" /> :
-                       <Clock className="w-3 h-3" />}
-                      <span className="capitalize">{selectedAgent.status}</span>
-                    </div>
-                  </div>
-
-                  {selectedAgent.currentTaskId && (
-                    <div className="space-y-3">
-                      <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Current Task</div>
-                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                        <p className="text-sm text-slate-700 font-mono">{selectedAgent.currentTaskId}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Activity</div>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 text-sm">
-                        <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        </div>
-                        <div>
-                          <p className="text-slate-900 font-medium">Task completed</p>
-                          <p className="text-xs text-slate-500">2 hours ago</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 text-sm">
-                        <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Sparkles className="w-3 h-3 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="text-slate-900 font-medium">Came online</p>
-                          <p className="text-xs text-slate-500">5 hours ago</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+                  >
+                    {tab} ({taskCounts[tab]})
+                  </button>
+                ))}
+              </div>
+              <Button className="bg-slate-900 hover:bg-slate-800">
+                <Plus className="w-4 h-4 mr-2" />
+                New Task
+              </Button>
+            </div>
           </div>
+
+          <div className="divide-y divide-slate-100">
+            {filteredTasks.map((task) => (
+              <div 
+                key={task._id} 
+                className="p-5 hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => setSelectedTask(task)}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={cn(
+                    "w-1 h-12 rounded-full mt-1 flex-shrink-0",
+                    task.status === "done" ? "bg-blue-500" :
+                    task.status === "in_progress" ? "bg-amber-500" :
+                    task.status === "blocked" ? "bg-red-500" : "bg-slate-300"
+                  )} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 mb-1">
+                      <div>
+                        <h3 className="font-medium text-slate-900">{task.title}</h3>
+                        <p className="text-sm text-slate-500 line-clamp-1">{task.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Badge className={cn(getStatusColor(task.status))}>
+                          {task.status.replace("_", " ")}
+                        </Badge>
+                        <button className="p-1 hover:bg-slate-100 rounded transition-colors">
+                          <MoreHorizontal className="w-4 h-4 text-slate-400" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-500">{task.dueDate}</span>
+                      </div>
+                      {task.agentData && (
+                        <div className="flex items-center gap-1.5">
+                          <Avatar className="w-5 h-5">
+                            <AvatarFallback className="text-[10px] bg-slate-100 text-slate-600">
+                              {task.agentData.avatar}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-slate-500">{task.agentData.name}</span>
+                        </div>
+                      )}
+                      <Badge variant="outline" className={cn("text-xs", getPriorityStyles(task.priority))}>
+                        {task.priority}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+
+      <Sheet open={!!selectedTask} onOpenChange={() => setSelectedTask(null)}>
+        <SheetContent className="sm:max-w-lg bg-white">
+          <SheetHeader className="pb-4 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="text-lg font-semibold text-slate-900">Task Details</SheetTitle>
+              <Badge className={cn(getStatusColor(selectedTask?.status || ""))}>
+                {selectedTask?.status?.replace("_", " ")}
+              </Badge>
+            </div>
+            <SheetDescription className="text-slate-500">
+              Task ID: {selectedTask?._id}
+            </SheetDescription>
+          </SheetHeader>
+          
+          {selectedTask && (
+            <div className="mt-6 space-y-6">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">{selectedTask.title}</h3>
+                <p className="text-slate-600">{selectedTask.description}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Priority</p>
+                  <Badge variant="outline" className={cn(getPriorityStyles(selectedTask.priority))}>
+                    {selectedTask.priority}
+                  </Badge>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Due Date</p>
+                  <p className="font-medium text-slate-900">{selectedTask.dueDate}</p>
+                </div>
+              </div>
+
+              {selectedTask.agentData && (
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Assigned Agent</p>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarFallback className="bg-slate-200 text-slate-600">
+                        {selectedTask.agentData.avatar}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-slate-900">{selectedTask.agentData.name}</p>
+                      <p className="text-sm text-slate-500">AI Agent</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedTask.output && (
+                <div className="p-4 bg-slate-900 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Terminal className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-300">Agent Output</span>
+                  </div>
+                  <pre className="text-sm text-slate-400 font-mono whitespace-pre-wrap">
+                    {selectedTask.output}
+                  </pre>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  className="flex-1 bg-slate-900 hover:bg-slate-800" 
+                  onClick={() => console.log("Run agent")}
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Run Agent
+                </Button>
+                <Button variant="outline" className="flex-1">
+                  <FileText className="w-4 h-4 mr-2" />
+                  View Details
+                </Button>
+              </div>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
     </div>
